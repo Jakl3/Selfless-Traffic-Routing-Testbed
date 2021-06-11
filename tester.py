@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     times_Dijkstra = []
     times_DensityDijkstra = []
-    num_tests = 200
+    num_tests = 5
 
     for i in range(num_tests):
         #sumo_binary = checkBinary('sumo-gui')

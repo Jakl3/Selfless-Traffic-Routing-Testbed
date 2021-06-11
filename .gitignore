@@ -6,4 +6,3 @@ trips.trips*.xml
 *.dump.xml
 configurations/test_dump.xml
 configurations/testTrace.xml
-venv/
