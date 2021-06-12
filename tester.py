@@ -20,6 +20,7 @@ else:
     sys.exit("No environment variable SUMO_HOME!")
 
 from sumolib import checkBinary
+from tqdm import tqdm
 import traci
 
 
@@ -109,9 +110,9 @@ if __name__ == "__main__":
     # #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     times_Dijkstra = []
     times_DensityDijkstra = []
-    num_tests = 5
+    num_tests = 1000
 
-    for i in range(num_tests):
+    for i in tqdm(range(num_tests)):
         #sumo_binary = checkBinary('sumo-gui')
         sumo_binary = checkBinary('sumo') #use this line if you do not want the UI of SUMO
 
@@ -134,9 +135,8 @@ if __name__ == "__main__":
         #         v.destination, v.start_time, v.deadline))
         times_Dijkstra.append(test_dijkstra_policy(vehicles))
         times_DensityDijkstra.append(test_density_dijkstra_policy(vehicles))
-        #times_Random.append(test_random_policy(vehicles))
 
-    print(f"Results from {num_tests} trials:")
+    print(f"\n\n\n\n\nResults from {num_tests} trials:")
     times_Dijkstra = np.array(times_Dijkstra)
     print('>> Dijkstra [average timespan, total vehicle number, deadlines missed]')
     #print(times_Dijkstra)
@@ -149,12 +149,21 @@ if __name__ == "__main__":
     print(f"Average timespan: {np.mean(times_DensityDijkstra[:, 0])}, "
           f"deadlines missed: {np.sum(times_DensityDijkstra[:, 2])}")
 
+    print(">>> Differences:")
+    sum_Dijkstra = 0
+    sum_Density = 0
+    cnt = 0
     for item in range(len(times_Dijkstra)):
         if times_Dijkstra[item, 0] != times_DensityDijkstra[item, 0]:
             print(f'Dijkstra: {times_Dijkstra[item]}, Density: {times_DensityDijkstra[item]}')
+            cnt += 1
+            sum_Dijkstra += times_Dijkstra[item, 0]
+            sum_Density += times_DensityDijkstra[item, 0]
+    if cnt > 0:
+        print(f">>> The two algorithsm differed for {(cnt/num_tests)*100}% of the trials")
+        print(f">>> Mean Difference (Dijkstra - Density): { (sum_Dijkstra - sum_Density) / cnt}")
+        print(f">>> For cases where the two algorithsm differed,\n    the performance of Density is {(sum_Dijkstra/sum_Density)*100}% that of Dijkstra")
+    else:
+        print("None")
 
-    # times_Random = np.array(times_Random)
-    # print('>> Random [average timespan, total vehicle number, deadlines missed]')
-    # print(times_Random)
-    # print(np.mean(times_Random[:, 0]))
-    # # -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
