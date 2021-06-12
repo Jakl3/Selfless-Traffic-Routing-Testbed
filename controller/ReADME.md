@@ -1,9 +1,13 @@
-```
+```python
 Results from 1000 trials:
->> Dijkstra [average timespan, total vehicle number, deadlines missed]
+>>> Time taken: [1:11:14]
+
+>>> Dijkstra [average timespan, total vehicle number, deadlines missed]
 Average timespan: 229.82524444444442, deadlines missed: 271.0
->> DensityDijkstra [average timespan, total vehicle number, deadlines missed]
+
+>>> DensityDijkstra [average timespan, total vehicle number, deadlines missed]
 Average timespan: 227.55284444444447, deadlines missed: 271.0
+
 >>> Differences:
 Dijkstra: [92.3 10.   0. ], Density: [ 5. 10.  0.]
 Dijkstra: [67.3 10.   0. ], Density: [16.1 10.   0. ]
@@ -70,6 +74,7 @@ Dijkstra: [122.8  10.    0. ], Density: [67.4 10.   0. ]
 Dijkstra: [63.5 10.   0. ], Density: [23.3 10.   0. ]
 Dijkstra: [122.8  10.    0. ], Density: [67.4 10.   0. ]
 Dijkstra: [41.8 10.   0. ], Density: [32.2 10.   0. ]
+
 >>> The two algorithsm differed for 6.5% of the trials
 >>> Mean Difference (Dijkstra - Density): 34.96000000000002
 >>> For cases where the two algorithsm differed,
