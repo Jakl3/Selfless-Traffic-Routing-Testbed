@@ -10,15 +10,17 @@ for current_edge in list_of_edges:
     weight_dictionary[current_edge] = (get_length_of_edge[current_edge]) * (1 + 10*density)
 ```
 
+## Results
 The results of 1,000 trials are below. Note that in each trial, there is ten cars sent out. This means that although there is 271 deadlines missed, that is 271 deadlines out of 10,000 cars.
-```python
-Results from 1000 trials:
->>> Time taken (hr:min:sec): [1:11:14]
+```php
+Results of 1000 trials:
 
->>> Dijkstra [average timespan, total vehicle number, deadlines missed]
+>>> Time elapsed [hr:min:sec]: [1:11:14]
+
+>>> Dijkstra [average timespan, total vehicle num, deadlines missed]
 Average timespan: 229.82524444444442, deadlines missed: 271.0
 
->>> DensityDijkstra [average timespan, total vehicle number, deadlines missed]
+>>> DensityDijkstra [average timespan, total vehicle num, deadlines missed]
 Average timespan: 227.55284444444447, deadlines missed: 271.0
 
 >>> Differences:
@@ -89,8 +91,8 @@ Dijkstra: [122.8  10.    0. ],  Density: [67.4 10.   0. ]
 Dijkstra: [41.8 10.   0. ],     Density: [32.2 10.   0. ]
 
 >>> The two algorithms differed for 6.5% of the trials
->>> Mean Timespan Difference (Dijkstra - Density): 34.96000000000002
->>> For cases where the two algorithms differed, the performance of Density is 269.9117691042321% that of Dijkstra
+>>> Mean timespan difference (Dijkstra - Density): 34.96000000000002
+>>> For cases when the two algorithms differed, the performance of Density is 269.9117691042321% that of Dijkstra
 ```
 The results mostly show that there is not a clear negative for accounting for the density of the road when routing using Dijkstra's Algorithm. The Density Dijkstra's Algorithm tends to perform better in short operations where the traditional Dijkstra's Algorithm already performs well. In other cases, it tends to perform equally well as traditional Dijkstra's.
 
