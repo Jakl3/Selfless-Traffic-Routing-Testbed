@@ -1,3 +1,20 @@
+# Results of DensityDijkstra vs Dijkstra Algorithms for STR SUMO
+## Density Dijkstra
+This algorithm is based off of Dijkstra's Algorithm, with the main difference
+being that it accounts for the density of the road (the amount of cars on the road
+divided by the length of the road). This would directly address the problem of
+multiple cars picking the fastest route without regard for how many cars are
+currently on that route.
+
+The results show that, for trials where Dijkstra's Algorithm results in relatively
+quick average travel times, the Density Dijkstra's algorithm results in even quicker
+times.
+
+This was just a preliminary test. After seeing the results, I do not think it performs
+well enough to safely conclude that it is consistently better than Dijkstra's. After this,
+I plan to implement a different algorithm that will hopefully address the goal of
+selfless traffic routing.
+
 ```python
 Results from 1000 trials:
 >>> Time taken (hr:min:sec): [1:11:14]
