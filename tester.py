@@ -10,6 +10,8 @@ from core.Util import *
 from controller.RouteController import *
 from controller.DijkstraController import DijkstraPolicy
 from controller.DensityDijkstraController import DensityDijkstraPolicy
+from controller.FloydWarshallController import TestPolicy
+from controller.TTDijkstraController import TTDijkstraPolicy
 from core.target_vehicles_generation_protocols import *
 import numpy as np
 
@@ -62,9 +64,14 @@ def test_density_dijkstra_policy(vehicles):
     scheduler = DensityDijkstraPolicy(init_connection_info)
     return run_simulation(scheduler, vehicles)
 
-def test_random_policy(vehicles):
-    print("Testing Random Route Controller")
-    scheduler = RandomPolicy(init_connection_info)
+def test_fw_policy(vehicles):
+    print("Testing Floyd-Warshall Route Controller")
+    scheduler = TestPolicy(init_connection_info)
+    return run_simulation(scheduler, vehicles)
+
+def test_tt_policy(vehicles):
+    print("Testing Test Route Controller")
+    scheduler = TTDijkstraPolicy(init_connection_info)
     return run_simulation(scheduler, vehicles)
 
 
@@ -79,9 +86,9 @@ def run_simulation(scheduler, vehicles):
                  "--fcd-output", "./configurations/testTrace.xml"])
 
     total_time, end_number, deadlines_missed = simulation.run()
-    print("Average timespan: {}, total vehicle number: {}".format(str(total_time/end_number),\
-        str(end_number)))
-    print(str(deadlines_missed) + ' deadlines missed.')
+    # print("Average timespan: {}, total vehicle number: {}".format(str(total_time/end_number),\
+    #     str(end_number)))
+    # print(str(deadlines_missed) + ' deadlines missed.')
     traci.close()
     return np.array([(total_time/end_number), end_number, deadlines_missed])
 
@@ -89,8 +96,9 @@ def run_simulation(scheduler, vehicles):
 if __name__ == "__main__":
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
     # sumo_binary = checkBinary('sumo-gui')
-    # #sumo_binary = checkBinary('sumo')#use this line if you do not want the UI of SUMO
+    # # sumo_binary = checkBinary('sumo')#use this line if you do not want the UI of SUMO
     # # parse config file for map file name
     # dom = parse("./configurations/myconfig.sumocfg")
     #
@@ -104,13 +112,15 @@ if __name__ == "__main__":
     # route_file_attr = route_file_node[0].attributes
     # route_file = "./configurations/"+route_file_attr['value'].nodeValue
     # vehicles = get_controlled_vehicles(route_file, init_connection_info, 10, 50)
-    # test_density_dijkstra_policy(vehicles)
+    # test_tt_policy(vehicles)
+
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
     # #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
-    times_Dijkstra = []
-    times_DensityDijkstra = []
-    num_tests = 1000
+
+    times_one = [] # Dijkstra
+    times_two = [] # Floyd Warshall
+    num_tests = 5
 
     for i in tqdm(range(num_tests)):
         #sumo_binary = checkBinary('sumo-gui')
@@ -133,36 +143,54 @@ if __name__ == "__main__":
         # for vid, v in vehicles.items():
         #     print("id: {}, destination: {}, start time:{}, deadline: {};".format(vid, \
         #         v.destination, v.start_time, v.deadline))
-        times_Dijkstra.append(test_dijkstra_policy(vehicles))
-        times_DensityDijkstra.append(test_density_dijkstra_policy(vehicles))
+        times_one.append(test_dijkstra_policy(vehicles))
+        times_two.append(test_fw_policy(vehicles))
+
+        print(f">> Dijkstra >> Average timespan: {np.mean(np.array(times_one)[:, 0])}, "
+              f"deadlines missed: {np.sum(np.array(times_one)[:, 2])}")
+
+        print(f">> Test >> Average timespan: {np.mean(np.array(times_two)[:, 0])}, "
+              f"deadlines missed: {np.sum(np.array(times_two)[:, 2])}")
 
     print(f"\n\n\n\n\nResults from {num_tests} trials:")
-    times_Dijkstra = np.array(times_Dijkstra)
+    times_one = np.array(times_one)
     print('>> Dijkstra [average timespan, total vehicle number, deadlines missed]')
     #print(times_Dijkstra)
-    print(f"Average timespan: {np.mean(times_Dijkstra[:, 0])}, "
-          f"deadlines missed: {np.sum(times_Dijkstra[:, 2])}")
+    print(f"Average timespan: {np.mean(times_one[:, 0])}, "
+          f"deadlines missed: {np.sum(times_one[:, 2])}")
 
-    times_DensityDijkstra = np.array(times_DensityDijkstra)
-    print('>> DensityDijkstra [average timespan, total vehicle number, deadlines missed]')
+    times_two = np.array(times_two)
+    print('>> Test [average timespan, total vehicle number, deadlines missed]')
     #print(times_DensityDijkstra)
-    print(f"Average timespan: {np.mean(times_DensityDijkstra[:, 0])}, "
-          f"deadlines missed: {np.sum(times_DensityDijkstra[:, 2])}")
+    print(f"Average timespan: {np.mean(times_two[:, 0])}, "
+          f"deadlines missed: {np.sum(times_two[:, 2])}")
 
     print(">>> Differences:")
-    sum_Dijkstra = 0
-    sum_Density = 0
+    sum_one = 0
+    sum_two = 0
     cnt = 0
-    for item in range(len(times_Dijkstra)):
-        if times_Dijkstra[item, 0] != times_DensityDijkstra[item, 0]:
-            print(f'Dijkstra: {times_Dijkstra[item]}, Density: {times_DensityDijkstra[item]}')
+    print("> Better")
+    for item in range(len(times_one)):
+        if times_one[item, 0] > times_two[item, 0]:
+            print(f'Dijkstra: {times_one[item]}, Test: {times_two[item]}')
             cnt += 1
-            sum_Dijkstra += times_Dijkstra[item, 0]
-            sum_Density += times_DensityDijkstra[item, 0]
+            sum_one += times_one[item, 0]
+            sum_two += times_two[item, 0]
+
+    print("> Worse")
+    for item in range(len(times_one)):
+        if times_one[item, 0] < times_two[item, 0]:
+            print(f'Dijkstra: {times_one[item]}, Test: {times_two[item]}')
+            cnt += 1
+            sum_one += times_one[item, 0]
+            sum_two += times_two[item, 0]
+
     if cnt > 0:
+        print(f">>> Test performed {100*((np.mean(times_one[:, 0])/np.mean(times_two[:, 0]))-1)}% better than Dijkstra's")
         print(f">>> The two algorithsm differed for {(cnt/num_tests)*100}% of the trials")
-        print(f">>> Mean Difference (Dijkstra - Density): { (sum_Dijkstra - sum_Density) / cnt}")
-        print(f">>> For cases where the two algorithsm differed,\n    the performance of Density is {(sum_Dijkstra/sum_Density)*100}% that of Dijkstra")
+        print(f">>> Mean Difference (Dijkstra - Density): { (sum_one - sum_two) / cnt}")
+        print(f">>> For cases where the two algorithsm differed,\n    "
+              f"the performance of Density is {(sum_one/sum_two)*100}% that of Dijkstra")
     else:
         print("None")
 

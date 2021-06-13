@@ -6,7 +6,7 @@ import math
 import copy
 
 
-class DensityDijkstraPolicy(RouteController):
+class TTDijkstraPolicy(RouteController):
 
     def __init__(self, connection_info):
         super().__init__(connection_info)
@@ -17,6 +17,11 @@ class DensityDijkstraPolicy(RouteController):
         :param vehicles: list of vehicles on the map
         :param connection_info: information about the map (roads, junctions, etc)
         """
+
+        weight = {}
+        for edge in self.connection_info.edge_list:
+            weight[edge] = traci.edge.getLastStepMeanSpeed(edge)
+
         local_targets = {}
         for vehicle in vehicles:
             # print("{}: current - {}, destination - {}".format(vehicle.vehicle_id, vehicle.current_edge, vehicle.destination))
@@ -25,30 +30,24 @@ class DensityDijkstraPolicy(RouteController):
             visited = {}  # map of visited edges
             current_edge = vehicle.current_edge
 
-            current_distance = self.connection_info.edge_length_dict[current_edge]
+            current_distance = weight[current_edge]
             unvisited[current_edge] = current_distance
             path_lists = {edge: [] for edge in
                           self.connection_info.edge_list}  # stores shortest path to each edge using directions
             while True:
-
-                len_dict = {}
-                for edge_now in self.connection_info.edge_list:
-                    car_num = traci.edge.getLastStepVehicleNumber(edge_now)
-                    density = car_num / self.connection_info.edge_length_dict[edge_now]
-                    len_dict[edge_now] = (self.connection_info.edge_length_dict[edge_now]) * (1 + 10*density)
-
                 if current_edge not in self.connection_info.outgoing_edges_dict.keys():
                     continue
                 for direction, outgoing_edge in self.connection_info.outgoing_edges_dict[current_edge].items():
                     if outgoing_edge not in unvisited:
                         continue
-                    new_distance = current_distance + len_dict[outgoing_edge]
-                    new_distance_2 = current_distance + self.connection_info.edge_length_dict[outgoing_edge]
+                    edge_length = weight[outgoing_edge]
+                    new_distance = current_distance + edge_length
                     if new_distance < unvisited[outgoing_edge]:
-                        unvisited[outgoing_edge] = new_distance_2
+                        unvisited[outgoing_edge] = new_distance
                         current_path = copy.deepcopy(path_lists[current_edge])
                         current_path.append(direction)
                         path_lists[outgoing_edge] = copy.deepcopy(current_path)
+                        # print("{} + {} : {} + {}".format(path_lists[current_edge], direction, path_edge_lists[current_edge], outgoing_edge))
 
                 visited[current_edge] = current_distance
                 del unvisited[current_edge]
@@ -58,6 +57,8 @@ class DensityDijkstraPolicy(RouteController):
                     break
                 possible_edges = [edge for edge in unvisited.items() if edge[1]]
                 current_edge, current_distance = sorted(possible_edges, key=lambda x: x[1])[0]
+                # print('{}:{}------------'.format(current_edge, current_distance))
+            # current_edge = vehicle.current_edge
 
             for direction in path_lists[vehicle.destination]:
                 decision_list.append(direction)
