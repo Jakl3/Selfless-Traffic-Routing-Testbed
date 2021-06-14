@@ -11,7 +11,6 @@ from controller.RouteController import *
 from controller.DijkstraController import DijkstraPolicy
 from controller.DensityDijkstraController import DensityDijkstraPolicy
 from controller.FloydWarshallController import TestPolicy
-from controller.TTDijkstraController import TTDijkstraPolicy
 from core.target_vehicles_generation_protocols import *
 import numpy as np
 
@@ -69,12 +68,6 @@ def test_fw_policy(vehicles):
     scheduler = TestPolicy(init_connection_info)
     return run_simulation(scheduler, vehicles)
 
-def test_tt_policy(vehicles):
-    print("Testing Test Route Controller")
-    scheduler = TTDijkstraPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles)
-
-
 def run_simulation(scheduler, vehicles):
 
     simulation = StrSumo(scheduler, init_connection_info, vehicles)
@@ -112,7 +105,8 @@ if __name__ == "__main__":
     # route_file_attr = route_file_node[0].attributes
     # route_file = "./configurations/"+route_file_attr['value'].nodeValue
     # vehicles = get_controlled_vehicles(route_file, init_connection_info, 10, 50)
-    # test_tt_policy(vehicles)
+    # #test_dijkstra_policy(vehicles)
+    # test_fw_policy(vehicles)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
@@ -138,7 +132,7 @@ if __name__ == "__main__":
         route_file_node = dom.getElementsByTagName('route-files')
         route_file_attr = route_file_node[0].attributes
         route_file = "./configurations/"+route_file_attr['value'].nodeValue
-        vehicles = get_controlled_vehicles(route_file, init_connection_info, 10, 50)
+        vehicles = get_controlled_vehicles(route_file, init_connection_info, 50, 10)
         #print the controlled vehicles generated
         # for vid, v in vehicles.items():
         #     print("id: {}, destination: {}, start time:{}, deadline: {};".format(vid, \
