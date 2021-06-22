@@ -43,7 +43,6 @@ def get_controlled_vehicles(route_filename, connection_info, \
     '''
     vehicle_dict = {}
     print(connection_info.net_filename)
-    print("Controlled: ", num_controlled_vehicles, "| Uncontrolled: ", num_uncontrolled_vehicles)
     generator = target_vehicles_generator(connection_info.net_filename)
 
     # list of target vehicles is returned by generate_vehicles
@@ -55,22 +54,22 @@ def get_controlled_vehicles(route_filename, connection_info, \
 
     return vehicle_dict
 
-def test_dijkstra_policy(vehicles, csv_path):
+def test_dijkstra_policy(vehicles):
     print("Testing Dijkstra's Algorithm Route Controller")
     scheduler = DijkstraPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+    return run_simulation(scheduler, vehicles)
 
-def test_density_dijkstra_policy(vehicles, csv_path):
+def test_density_dijkstra_policy(vehicles):
     print("Testing Test Route Controller")
     scheduler = DensityDijkstraPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+    return run_simulation(scheduler, vehicles)
 
-def test_fw_policy(vehicles, csv_path):
+def test_fw_policy(vehicles):
     print("Testing Floyd-Warshall Route Controller")
     scheduler = FloydWarshallPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+    return run_simulation(scheduler, vehicles)
 
-def run_simulation(scheduler, vehicles, csv_path):
+def run_simulation(scheduler, vehicles):
 
     simulation = StrSumo(scheduler, init_connection_info, vehicles, csv_path)
 
@@ -86,65 +85,62 @@ def run_simulation(scheduler, vehicles, csv_path):
     # print(str(deadlines_missed) + ' deadlines missed.')
     traci.close()
     end_number = max(end_number, 1)
-    print(">>>> sim done >>>> ", total_time, end_number, deadlines_missed)
     return np.array([(total_time/end_number), end_number, deadlines_missed])
 
 
 if __name__ == "__main__":
 
-    #vehicle_pairs = [(40, 40), (20, 60), (60, 20), (80, 80)]
-    vehicle_pairs = [()]
-    num_tests = 1000
+    for i in range(10000):
+        print(i)
 
-    for controlled, uncontrolled in tqdm(vehicle_pairs):
-        csv_pth = f'/home/jack/Code/PycharmProjects/Selfless-Traffic-Routing-Testbed/testing_data/fw/car_data/cont_{controlled}_uncont_{uncontrolled}_trials_{num_tests}.csv'
-        f = open(csv_pth, "w+")
+        csv_path = '/home/jack/Code/PycharmProjects/Selfless-Traffic-Routing-Testbed/testing_data/vehicle_results.csv'
+        f = open(csv_path, "w+")
         writer = csv.writer(f)
         writer.writerow(['ControllerID', 'EndNumber', 'VehicleID', 'Timespan', 'DeadlineMissed'])
         f.close()
 
-        # Dijkstra
-        times_one = []
-        # Floyd Warshall
-        times_two = []
+        # sumo_binary = checkBinary('sumo-gui')
+        sumo_binary = checkBinary('sumo') #use this line if you do not want the UI of SUMO
 
-        for i in tqdm(range(num_tests)):
-            # sumo_binary = checkBinary('sumo-gui')
-            sumo_binary = checkBinary('sumo')  # use this line if you do not want the UI of SUMO
+        # parse config file for map file name
+        dom = parse("./configurations/myconfig.sumocfg")
 
-            # parse config file for map file name
-            dom = parse("./configurations/myconfig.sumocfg")
+        net_file_node = dom.getElementsByTagName('net-file')
+        net_file_attr = net_file_node[0].attributes
 
-            net_file_node = dom.getElementsByTagName('net-file')
-            net_file_attr = net_file_node[0].attributes
+        net_file = net_file_attr['value'].nodeValue
+        init_connection_info = ConnectionInfo("./configurations/"+net_file)
 
-            net_file = net_file_attr['value'].nodeValue
-            init_connection_info = ConnectionInfo("./configurations/" + net_file)
+        route_file_node = dom.getElementsByTagName('route-files')
+        route_file_attr = route_file_node[0].attributes
+        route_file = "./configurations/"+route_file_attr['value'].nodeValue
+        # first is num controlled, second is num uncontrolled
+        vehicles = get_controlled_vehicles(route_file, init_connection_info, 150, 50)
+        #print the controlled vehicles generated
+        # for vid, v in vehicles.items():
+        #     print("id: {}, destination: {}, start time:{}, deadline: {};".format(vid, \
+        #         v.destination, v.start_time, v.deadline))
+        times_one = test_dijkstra_policy(vehicles)
+        times_two = test_fw_policy(vehicles)
+        print(times_one)
+        print(times_two)
 
-            route_file_node = dom.getElementsByTagName('route-files')
-            route_file_attr = route_file_node[0].attributes
-            route_file = "./configurations/" + route_file_attr['value'].nodeValue
-            vehi = get_controlled_vehicles(route_file, init_connection_info, controlled, uncontrolled)
+        timespan_dijk = np.array(times_one)[0]
+        print(f">> Dijkstra >> Average timespan: {timespan_dijk}, "
+              f"deadlines missed: {np.array(times_one)[2]}")
 
-            print(">>>>", controlled, ">>>>", uncontrolled, ">>>>", len(vehi.items()))
-            print(csv_pth)
+        timespan_test = np.array(times_two)[0]
+        print(f">> Test >> Average timespan: {timespan_test}, "
+              f"deadlines missed: {np.array(times_two)[2]}")
 
-            t1 = test_dijkstra_policy(vehi, csv_pth)
-            t2 = test_fw_policy(vehi, csv_pth)
-            times_one.append(t1)
-            times_two.append(t2)
-
-            print(f">> Dijkstra >> Average timespan: {t1[0]}, total num: {t1[1]}, deadlines missed: {t1[2]}")
-
-            print(f">> Test >> Average timespan: {t2[0]}, total num: {t2[1]}, deadlines missed: {t2[2]}")
-
-        print(f"\nResults from {num_tests} trials:")
-        times_one = np.array(times_one)
-        print('>> Dijkstra [average timespan, total vehicle number, deadlines missed]')
-        print(f"Average timespan: {np.mean(times_one[:, 0])}, "
-              f"deadlines missed: {np.sum(times_one[:, 2])}")
-
-        times_two = np.array(times_two)
-        print('>> Test [average timespan, total vehicle number, deadlines missed]')
-        print(f"Average timespan: {np.mean(times_two[:, 0])}, "
-              f"deadlines missed: {np.sum(times_two[:, 2])}")
+        print(int(times_one[1]) == int(times_two[1]))
+        print(timespan_dijk, timespan_test)
+        if times_two[2] < 100:
+            print("pass test 0")
+            if abs(times_one[1]) - int(times_two[1]) < 10:
+                print("pass test 1")
+                if timespan_dijk > 100 and timespan_test > 100:
+                    print("pass test 2")
+                    if 1.5 < (timespan_dijk / timespan_test) < 2:
+                        print("pass test 3")
+                        break

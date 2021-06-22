@@ -8,3 +8,4 @@ configurations/test_dump.xml
 configurations/testTrace.xml
 /venv/
 /.idea/
+/testing_data/*

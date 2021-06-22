@@ -35,7 +35,8 @@ class DensityDijkstraPolicy(RouteController):
                 for edge_now in self.connection_info.edge_list:
                     car_num = traci.edge.getLastStepVehicleNumber(edge_now)
                     density = car_num / self.connection_info.edge_length_dict[edge_now]
-                    len_dict[edge_now] = (self.connection_info.edge_length_dict[edge_now]) * (1 + 10*density)
+                    len_dict[edge_now] = max((self.connection_info.edge_length_dict[edge_now]), (self.connection_info.edge_length_dict[edge_now]) * (100*density))
+                    #print(car_num, edge_now, self.connection_info.edge_length_dict[edge_now], density, len_dict[edge_now])
 
                 if current_edge not in self.connection_info.outgoing_edges_dict.keys():
                     continue

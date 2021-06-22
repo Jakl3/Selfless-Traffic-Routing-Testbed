@@ -14,12 +14,13 @@ else:
 import traci
 import sumolib
 from controller.RouteController import *
+import csv
 
 """
 SUMO Selfless Traffic Routing (STR) Testbed
 """
 
-MAX_SIMULATION_STEPS = 2000
+MAX_SIMULATION_STEPS = 5000
 
 # TODO: decide which file to put these in. Right now they're also defined in RouteController!!
 STRAIGHT = "s"
@@ -30,7 +31,7 @@ SLIGHT_LEFT = "L"
 SLIGHT_RIGHT = "R"
 
 class StrSumo:
-    def __init__(self, route_controller, connection_info, controlled_vehicles):
+    def __init__(self, route_controller, connection_info, controlled_vehicles, csv_path):
         """
         :param route_controller: object that implements the scheduling algorithm for controlled vehicles
         :param connection_info: object that includes the map information
@@ -39,8 +40,10 @@ class StrSumo:
         self.direction_choices = [STRAIGHT, TURN_AROUND, SLIGHT_RIGHT, RIGHT, SLIGHT_LEFT, LEFT]
         self.connection_info = connection_info
         self.route_controller = route_controller
+        print(">>>>", self.route_controller)
         self.controlled_vehicles =  controlled_vehicles # dictionary of Vehicles by id
         #print(self.controlled_vehicles)
+        self.csv_path = csv_path
 
     def run(self):
         """
@@ -123,6 +126,11 @@ class StrSumo:
                         end_number += 1
                         print("Vehicle {} reaches the destination: {}, timespan: {}, deadline missed: {}"\
                             .format(vehicle_id, arrived_at_destination, time_span, miss))
+
+                        with open(self.csv_path, 'a', newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerow([self.route_controller, end_number, vehicle_id, time_span, int(miss)])
+
                         #if not arrived_at_destination:
                             #print("{} - {}".format(self.controlled_vehicles[vehicle_id].local_destination, self.controlled_vehicles[vehicle_id].destination))
 
