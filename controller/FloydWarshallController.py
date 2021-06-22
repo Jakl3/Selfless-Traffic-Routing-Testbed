@@ -14,10 +14,22 @@ class FloydWarshallPolicy(RouteController):
     """
 
     def __init__(self, connection_info):
+        """
+        Constructor for the class
+        :variable edge_lane_speed_list: contains the maximum speed of every edge, as defined by SUMO
+        """
         super().__init__(connection_info)
         self.edge_lane_speed_list = {}
 
     def trace_path(self, i, j, p):
+        """
+        Reconstructs the path from edge i to edge j using the predecessor matrix constructed during
+        the calculations of the Floyd-Warshall algorithm
+        :param i: edge i, the initial edge
+        :param j: edge j, the final edge
+        :param p: the predecessor matrix, where p[i][j] contains the predecessor from i to j
+        :return: path: an array containing the reconstructed path from edge i to edge j
+        """
         if p[i][j] == -1:
             return {}
 
@@ -29,6 +41,9 @@ class FloydWarshallPolicy(RouteController):
         return path
 
     def create_lane_speed(self):
+        """
+        Constructs the variable edge_lane_speed_list, filling it with the maximum speed of each edge.
+        """
         for edge in self.connection_info.edge_list:
             if self.edge_lane_speed_list:
                 return
@@ -42,35 +57,28 @@ class FloydWarshallPolicy(RouteController):
 
     def make_decisions(self, vehicles, connection_info):
         """
-        A custom scheduling algorithm can be written in between the 'Your algo...' comments.
-        -For each car in the vehicle batch, your algorithm should provide a list of future decisions.
-        -Sometimes short paths result in the vehicle reaching its local TRACI destination before reaching its
-         true global destination. In order to counteract this, ask for a list of decisions rather than just one.
-        -This list of decisions is sent to a function that returns the 'closest viable target' edge
-          reachable by the decisions - it is not the case that all decisions will always be consumed.
-          As soon as there is enough distance between the current edge and the target edge, the compute_target_edge
-          function will return.
-        -The 'closest viable edge' is a local target that is used by TRACI to control vehicles
-        -The closest viable edge should always be far enough away to ensure that the vehicle is not removed
-          from the simulation by TRACI before the vehicle reaches its true destination
-
+        A scheduling algorithm that uses the Floyd-Warshall algorithm with travel-time-based weights to schedule
+        vehicles along certain routes. These routes will be sent to each vehicle for them to execute.
         :param vehicles: list of vehicles to make routing decisions for
         :param connection_info: object containing network information
         :return: local_targets: {vehicle_id, target_edge}, where target_edge is a local target to send to TRACI
         """
         self.create_lane_speed()
-        # print(self.create_lane_speed())
 
+        # Variables used for the Floyd-Warshall algorithm
         inf = 1e8
         n = len(self.connection_info.edge_list)
         edge_idx = self.connection_info.edge_index_dict
 
-        # computes weight of edges
+        # Computes the weight of edges
         weight = {}
         for edge in self.connection_info.edge_list:
             max_speed = max(self.edge_lane_speed_list[edge])
-
             length = self.connection_info.edge_length_dict[edge]
+
+            # The commented section below does the exact same thing as the uncommented section. TraCI and SUMO
+            # already computes the average speed, so we can just use that instead of calculating it ourselves.
+
             # vehicles_on_edge = traci.edge.getLastStepVehicleIDs(edge)
             #
             # if len(vehicles_on_edge) == 0:
@@ -83,13 +91,12 @@ class FloydWarshallPolicy(RouteController):
             #     speed = total_velocity * (1/len(vehicles_on_edge))
             #     print(">>>> ", total_velocity, len(vehicles_on_edge), speed)
             # print(traci.edge.getLastStepMeanSpeed(edge), traci.edge.getLastStepVehicleNumber(edge))
+
             traci_spd = traci.edge.getLastStepMeanSpeed(edge)
             speed = traci_spd if traci_spd != 0 else max_speed
             weight[edge] = length / speed
 
-        # print("passed weight assign")
-
-        # initializes distance matrix
+        # Initializes the distance matrix, where distance[i][j] stores the shortest path from i to j
         distance = [[inf if i != j else 0 for i in range(n)] for j in range(n)]
         for edge in self.connection_info.edge_list:
             idx1 = edge_idx[edge]
@@ -97,7 +104,7 @@ class FloydWarshallPolicy(RouteController):
                 idx2 = edge_idx[outgoing_edge]
                 distance[idx1][idx2] = weight[edge]
 
-        # initializes predecessor matrix
+        # Initializes predecessor matrix, where p[i][j] stores the predecessor from i to j
         p = [[0 for i in range(n)] for j in range(n)]
         for i in range(n):
             for j in range(n):
@@ -106,7 +113,7 @@ class FloydWarshallPolicy(RouteController):
                 else:
                     p[i][j] = j
 
-        # Floyd-Warshall Algorithm
+        # Floyd-Warshall Algorithm, computes the shortest path for all pairs of edges i and j
         for k in range(n):
             for i in range(n):
                 for j in range(n):
@@ -117,34 +124,29 @@ class FloydWarshallPolicy(RouteController):
                         distance[i][j] = distance[i][k] + distance[k][j]
                         p[i][j] = p[i][k]
 
-        # print(distance)
-
         local_targets = {}
         for vehicle in vehicles:
-            # print("\n\n\n\n\n\n\n\n")
+            # Defines variables for easier use in the following sections
             current_edge = vehicle.current_edge
             destination = vehicle.destination
             curr = edge_idx[current_edge]
             end = edge_idx[destination]
-            # print(distance[curr][end])
 
-            # traces the shortest path between curr and end
+            # Traces the shortest path between the origin (curr) and the destination (end)
             path = self.trace_path(curr, end, p)
             edge_path = []
             for edge in path:
                 for key, value in edge_idx.items():
                     if edge == value:
                         edge_path.append(key)
-            # print(vehicle.current_edge, vehicle.destination, edge_path)
 
+            # Uses the reconstructed path to make a decisions list that can be used to compute instructions
             decision_list = []
             for i in range(len(edge_path) - 1):
-                # print(edge_path[i], self.connection_info.outgoing_edges_dict[edge_path[i]])
                 for direction, outgoing_edge in self.connection_info.outgoing_edges_dict[edge_path[i]].items():
-                    # print(">>>>>>>", outgoing_edge, edge_path[i+1])
                     if outgoing_edge == edge_path[i + 1]:
-                        # print("good >>", outgoing_edge, edge_path[i+1])
                         decision_list.append(direction)
 
+            # Creates the local_targets for each vehicle
             local_targets[vehicle.vehicle_id] = self.compute_local_target(decision_list, vehicle)
         return local_targets
