@@ -8,7 +8,7 @@ import copy
 
 class FloydWarshallPolicy(RouteController):
     """
-    Example class for a custom scheduling algorithm.
+    Floyd Warshall scheduling algorithm.
     Utilizes a random decision policy until vehicle destination is within reach,
     then targets the vehicle destination.
     """

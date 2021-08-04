@@ -101,84 +101,77 @@ def run_simulation(scheduler, vehicles):
 
 if __name__ == "__main__":
 
-    csv_path = '/home/jack/Code/PycharmProjects/Selfless-Traffic-Routing-Testbed/testing_data/csv_files/cumulative.csv'
+    res = defaultdict(list)
+
+    csv_path = '/home/jack/Code/PycharmProjects/Selfless-Traffic-Routing-Testbed/testing_data/csv_files/1000_set.csv'
 
     with open(csv_path, mode="w") as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['ControllerID', 'NumControlled', 'Pattern',
-                         'Timespan', 'TotDeadlineMissed', 'TotNumOfCars',
-                         'AvgDeadlineMissed', 'AvgTotNumOfCars'])
+        writer.writerow(['ControllerID', 'Timespan', 'DeadlineMissed', 'NumOfCars'])
 
-    for pattern in [1, 2, 3]:
-        for num_controlled in range(10, 151, 10):
-            res = defaultdict(list)
+    for i in range(1000):
+        print('>>>', i)
 
-            for i in range(10):
-                print(f'>>> Pattern: {pattern}, num_controlled: {num_controlled}, i: {i}')
+        # sumo_binary = checkBinary('sumo-gui')
+        sumo_binary = checkBinary('sumo')  # use this line if you do not want the UI of SUMO
 
-                # sumo_binary = checkBinary('sumo-gui')
-                sumo_binary = checkBinary('sumo')  # use this line if you do not want the UI of SUMO
+        # parse config file for map file name
+        dom = parse("./configurations/myconfig.sumocfg")
 
-                # parse config file for map file name
-                dom = parse("./configurations/myconfig.sumocfg")
+        net_file_node = dom.getElementsByTagName('net-file')
+        net_file_attr = net_file_node[0].attributes
 
-                net_file_node = dom.getElementsByTagName('net-file')
-                net_file_attr = net_file_node[0].attributes
+        net_file = net_file_attr['value'].nodeValue
+        init_connection_info = ConnectionInfo("./configurations/" + net_file)
 
-                net_file = net_file_attr['value'].nodeValue
-                init_connection_info = ConnectionInfo("./configurations/" + net_file)
+        route_file_node = dom.getElementsByTagName('route-files')
+        route_file_attr = route_file_node[0].attributes
+        route_file = "./configurations/" + route_file_attr['value'].nodeValue
+        # first is num controlled, second is num uncontrolled
+        vehis = get_controlled_vehicles(route_file, init_connection_info,
+                                           num_controlled_vehicles=150,
+                                           num_uncontrolled_vehicles=50,
+                                           pattern=1)
+        # # print the controlled vehicles generated
+        # for vid, v in vehis.items():
+        #     print("id: {}, destination: {}, start time:{}, deadline: {};".format(vid,
+        #                                                                          v.destination, v.start_time,
+        #                                                                          v.deadline))
+        times = dict()
+        times['astar'] = test_astar_policy(vehis)
+        times['dijk'] = test_dijkstra_policy(vehis)
 
-                route_file_node = dom.getElementsByTagName('route-files')
-                route_file_attr = route_file_node[0].attributes
-                route_file = "./configurations/" + route_file_attr['value'].nodeValue
-                # first is num controlled, second is num uncontrolled
-                vehis = get_controlled_vehicles(route_file, init_connection_info,
-                                                   num_controlled_vehicles=num_controlled,
-                                                   num_uncontrolled_vehicles=50,
-                                                   pattern=pattern)
-                # print the controlled vehicles generated
-                for vid, v in vehis.items():
-                    print("id: {}, destination: {}, start time:{}, deadline: {};".format(vid,
-                                                                                         v.destination, v.start_time,
-                                                                                         v.deadline))
-                times = dict()
-                times['astar'] = test_astar_policy(vehis)
-                times['dijk'] = test_dijkstra_policy(vehis)
-                times['fw'] = test_fw_policy(vehis)
-                times['dens'] = test_density_policy(vehis)
+        for key in times:
+            print(f">> {key} >> Average timespan: {np.array(times[key])[0]:.3f}, "
+                  f"deadlines missed: {int(np.array(times[key])[2])}/{int(np.array(times[key])[1])}")
+            res[key].append(times[key])
+            with open(csv_path, mode="a") as csv_file:
+                writer = csv.writer(csv_file)
+                writer.writerow([key,  # Controller ID
+                                 np.array(times[key])[0],  # Timespan
+                                 int(np.array(times[key])[2]),  # DeadlineMissed
+                                 int(np.array(times[key])[1])])  # NumOfCars
+        print()
 
-                for key in times:
-                    print(f">> {key} >> Average timespan: {np.array(times[key])[0]:.3f}, "
-                          f"deadlines missed: {int(np.array(times[key])[2])}/{int(np.array(times[key])[1])}")
-                    res[key].append(times[key])
-                print()
+    print('\n' * 5)
 
-            print('\n' * 5)
+    for key in res:
+        times = []
+        deadlines = []
+        tot = []
 
-            print(f'Pattern: {pattern}, num_controlled: {num_controlled}')
-            for key in res:
-                times = []
-                deadlines = []
-                tot = []
+        for item in res[key]:
+            times.append(item[0])
+            tot.append(item[1])
+            deadlines.append(item[2])
 
-                for item in res[key]:
-                    times.append(item[0])
-                    tot.append(item[1])
-                    deadlines.append(item[2])
+        timespan = np.mean(times)
+        tot_deadlines = np.sum(deadlines)
+        tot_num_of_cars = np.sum(tot)
+        avg_deadlines = np.mean(deadlines)
+        avg_num_of_cars = np.mean(tot)
+        print(f">> {key} >> Average timespan: {timespan}, "
+              f"Total deadlines missed: {tot_deadlines}/{tot_num_of_cars}, "
+              f"Average deadlines missed: {avg_deadlines}/{avg_num_of_cars}")
 
-                timespan = np.mean(times)
-                tot_deadlines = np.sum(deadlines)
-                tot_num_of_cars = np.sum(tot)
-                avg_deadlines = np.mean(deadlines)
-                avg_num_of_cars = np.mean(tot)
-                print(f">> {key} >> Average timespan: {timespan}, "
-                      f"Total deadlines missed: {tot_deadlines}/{tot_num_of_cars}, "
-                      f"Average deadlines missed: {avg_deadlines}/{avg_num_of_cars}")
-
-                with open(csv_path, mode="a") as csv_file:
-                    writer = csv.writer(csv_file)
-                    writer.writerow([key, num_controlled, pattern,
-                                     timespan, tot_deadlines, tot_num_of_cars,
-                                     avg_deadlines, avg_num_of_cars])
-
-            print('\n' * 5)
+    print('\n' * 5)

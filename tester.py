@@ -3,17 +3,13 @@ This test file needs the following files:
 STR_SUMO.py, RouteController.py, Util.py, test.net.xml, test.rou.xml, myconfig.sumocfg and corresponding SUMO libraries.
 '''
 from core.STR_SUMO import StrSumo
-import os
-import sys
-from xml.dom.minidom import parse, parseString
-from core.Util import *
+from xml.dom.minidom import parse
 from controller.RouteController import *
 from controller.DijkstraController import DijkstraPolicy
-from controller.DensityDijkstraController import DensityDijkstraPolicy
+from controller.HeuristicController import HeuristicPolicy
 from controller.FloydWarshallController import FloydWarshallPolicy
 from core.target_vehicles_generation_protocols import *
-import numpy as np
-import csv
+from controller.scrapped.scrapped_AStarController import HeuristicPolicy2
 
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -22,7 +18,6 @@ else:
     sys.exit("No environment variable SUMO_HOME!")
 
 from sumolib import checkBinary
-from tqdm import tqdm
 import traci
 
 
@@ -43,7 +38,6 @@ def get_controlled_vehicles(route_filename, connection_info, \
     '''
     vehicle_dict = {}
     print(connection_info.net_filename)
-    print("Controlled: ", num_controlled_vehicles, "| Uncontrolled: ", num_uncontrolled_vehicles)
     generator = target_vehicles_generator(connection_info.net_filename)
 
     # list of target vehicles is returned by generate_vehicles
@@ -55,96 +49,59 @@ def get_controlled_vehicles(route_filename, connection_info, \
 
     return vehicle_dict
 
-def test_dijkstra_policy(vehicles, csv_path):
+def test_policy(vehicles):
+    print("Testing Heuristic's Algorithm Route Controller")
+    scheduler = HeuristicPolicy(init_connection_info)
+    run_simulation(scheduler, vehicles)
+
+def test_policy_2(vehicles):
+    print("Testing FW's Algorithm Route Controller")
+    scheduler = FloydWarshallPolicy(init_connection_info)
+    run_simulation(scheduler, vehicles)
+
+def test_policy_3(vehicles):
     print("Testing Dijkstra's Algorithm Route Controller")
     scheduler = DijkstraPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+    run_simulation(scheduler, vehicles)
 
-def test_density_dijkstra_policy(vehicles, csv_path):
-    print("Testing Test Route Controller")
-    scheduler = DensityDijkstraPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+def test_policy_4(vehicles):
+    print("Testing Heuristic2's Algorithm Route Controller")
+    scheduler = HeuristicPolicy2(init_connection_info)
+    run_simulation(scheduler, vehicles)
 
-def test_fw_policy(vehicles, csv_path):
-    print("Testing Floyd-Warshall Route Controller")
-    scheduler = FloydWarshallPolicy(init_connection_info)
-    return run_simulation(scheduler, vehicles, csv_path)
+def run_simulation(scheduler, vehicles):
 
-def run_simulation(scheduler, vehicles, csv_path):
+    simulation = StrSumo(scheduler, init_connection_info, vehicles)
 
-    simulation = StrSumo(scheduler, init_connection_info, vehicles, csv_path)
-
-    # add "--quit-on-end", "--start" to line below if you want to test
-    # with sumo-gui while still skipping fast
-    traci.start([sumo_binary, "--no-step-log", "-c", "./configurations/myconfig.sumocfg", \
+    traci.start([sumo_binary, "-c", "./configurations/myconfig.sumocfg", \
                  "--tripinfo-output", "./configurations/trips.trips.xml", \
                  "--fcd-output", "./configurations/testTrace.xml"])
 
     total_time, end_number, deadlines_missed = simulation.run()
-    # print("Average timespan: {}, total vehicle number: {}".format(str(total_time/end_number),\
-    #     str(end_number)))
-    # print(str(deadlines_missed) + ' deadlines missed.')
+    print("Average timespan: {}, total vehicle number: {}".format(str(total_time/end_number),\
+        str(end_number)))
+    print(str(deadlines_missed) + ' deadlines missed.')
     traci.close()
-    end_number = max(end_number, 1)
-    print(">>>> sim done >>>> ", total_time, end_number, deadlines_missed)
-    return np.array([(total_time/end_number), end_number, deadlines_missed])
-
 
 if __name__ == "__main__":
+    # sumo_binary = checkBinary('sumo-gui')
+    sumo_binary = checkBinary('sumo')#use this line if you do not want the UI of SUMO
 
-    #vehicle_pairs = [(40, 40), (20, 60), (60, 20), (80, 80)]
-    vehicle_pairs = [()]
-    num_tests = 1000
+    # parse config file for map file name
+    dom = parse("./configurations/myconfig.sumocfg")
 
-    for controlled, uncontrolled in tqdm(vehicle_pairs):
-        csv_pth = f'/home/jack/Code/PycharmProjects/Selfless-Traffic-Routing-Testbed/testing_data/fw/car_data/cont_{controlled}_uncont_{uncontrolled}_trials_{num_tests}.csv'
-        f = open(csv_pth, "w+")
-        writer = csv.writer(f)
-        writer.writerow(['ControllerID', 'EndNumber', 'VehicleID', 'Timespan', 'DeadlineMissed'])
-        f.close()
+    net_file_node = dom.getElementsByTagName('net-file')
+    net_file_attr = net_file_node[0].attributes
 
-        # Dijkstra
-        times_one = []
-        # Floyd Warshall
-        times_two = []
+    net_file = net_file_attr['value'].nodeValue
+    init_connection_info = ConnectionInfo("./configurations/"+net_file)
 
-        for i in tqdm(range(num_tests)):
-            # sumo_binary = checkBinary('sumo-gui')
-            sumo_binary = checkBinary('sumo')  # use this line if you do not want the UI of SUMO
-
-            # parse config file for map file name
-            dom = parse("./configurations/myconfig.sumocfg")
-
-            net_file_node = dom.getElementsByTagName('net-file')
-            net_file_attr = net_file_node[0].attributes
-
-            net_file = net_file_attr['value'].nodeValue
-            init_connection_info = ConnectionInfo("./configurations/" + net_file)
-
-            route_file_node = dom.getElementsByTagName('route-files')
-            route_file_attr = route_file_node[0].attributes
-            route_file = "./configurations/" + route_file_attr['value'].nodeValue
-            vehi = get_controlled_vehicles(route_file, init_connection_info, controlled, uncontrolled)
-
-            print(">>>>", controlled, ">>>>", uncontrolled, ">>>>", len(vehi.items()))
-            print(csv_pth)
-
-            t1 = test_dijkstra_policy(vehi, csv_pth)
-            t2 = test_fw_policy(vehi, csv_pth)
-            times_one.append(t1)
-            times_two.append(t2)
-
-            print(f">> Dijkstra >> Average timespan: {t1[0]}, total num: {t1[1]}, deadlines missed: {t1[2]}")
-
-            print(f">> Test >> Average timespan: {t2[0]}, total num: {t2[1]}, deadlines missed: {t2[2]}")
-
-        print(f"\nResults from {num_tests} trials:")
-        times_one = np.array(times_one)
-        print('>> Dijkstra [average timespan, total vehicle number, deadlines missed]')
-        print(f"Average timespan: {np.mean(times_one[:, 0])}, "
-              f"deadlines missed: {np.sum(times_one[:, 2])}")
-
-        times_two = np.array(times_two)
-        print('>> Test [average timespan, total vehicle number, deadlines missed]')
-        print(f"Average timespan: {np.mean(times_two[:, 0])}, "
-              f"deadlines missed: {np.sum(times_two[:, 2])}")
+    route_file_node = dom.getElementsByTagName('route-files')
+    route_file_attr = route_file_node[0].attributes
+    route_file = "./configurations/"+route_file_attr['value'].nodeValue
+    vehicles = get_controlled_vehicles(route_file, init_connection_info, 50, 50)
+    #print the controlled vehicles generated
+    test_policy(vehicles)
+    test_policy_4(vehicles)
+    # test_policy_2(vehicles)
+    # test_policy_3(vehicles)
